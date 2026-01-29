@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orbit ARPG - Prototype</title>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div class="ui-layer">
+      <div class="top-bar">
+        <div class="score-container">
+          <span class="score-label">Kills</span>
+          <span id="score">0</span>
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <button id="btn-instructions" class="btn">Instrucciones</button>
+        <button id="btn-reset" class="btn btn-secondary">Reset Global</button>
+      </div>
+    </div>
+
+    <!-- Instructions Overlay -->
+    <div id="instructions-overlay" class="overlay">
+      <div class="modal">
+        <h2>Cómo Jugar</h2>
+        <div class="instructions-content">
+          <ul>
+            <li>Usa las <b>Flechas</b> o <b>WASD</b> para moverte.</li>
+            <li>Tus armas orbitan automáticamente a tu alrededor.</li>
+            <li>Toca el <b>núcleo central</b> del enemigo con tus armas para matarlo.</li>
+            <li>¡Cuidado! Si su arma toca tu núcleo, pierdes.</li>
+            <li>Al matar, mejoras tu radio, velocidad y cantidad de armas.</li>
+          </ul>
+        </div>
+        <button id="btn-close-instructions" class="btn">¡Entendido!</button>
+      </div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="gameover-overlay" class="overlay">
+      <div class="modal">
+        <h2 id="gameover-title">Game Over</h2>
+        <p>Tu núcleo ha sido destruido.</p>
+        <p>Puntaje final: <span id="final-score">0</span></p>
+        <button id="btn-restart" class="btn">Reiniciar Juego</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
