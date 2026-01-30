@@ -8,6 +8,7 @@ export class Player extends BaseCharacter {
     public hasShield: boolean = false;
     private keys: { [key: string]: boolean } = {};
     private shieldMesh: THREE.Mesh | null = null;
+    private invulnerabilityTimer: number = 0;
 
     constructor(scene: THREE.Scene, world: CANNON.World, gameScene: any) {
         // Cyan color for player
@@ -19,6 +20,14 @@ export class Player extends BaseCharacter {
 
     public update(deltaTime: number) {
         if (this.isDead) return;
+
+        if (this.invulnerabilityTimer > 0) {
+            this.invulnerabilityTimer -= deltaTime;
+            // Visual feedback for invulnerability (flicker)
+            this.mesh.visible = Math.floor(this.invulnerabilityTimer * 20) % 2 === 0;
+        } else {
+            this.mesh.visible = true;
+        }
 
         this.handleMovement();
         super.update(deltaTime);
@@ -57,8 +66,11 @@ export class Player extends BaseCharacter {
     }
 
     public takeDamage(): boolean {
+        if (this.invulnerabilityTimer > 0) return false;
+
         if (this.hasShield) {
             this.hasShield = false;
+            this.invulnerabilityTimer = 0.5; // 0.5s of invulnerability
             if (this.shieldMesh) {
                 this.mesh.remove(this.shieldMesh);
                 this.shieldMesh = null;

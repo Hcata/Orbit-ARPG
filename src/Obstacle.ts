@@ -42,7 +42,7 @@ export class Obstacle {
             shape: shape,
             position: new CANNON.Vec3(position.x, position.y, position.z),
             collisionFilterGroup: 16,
-            collisionFilterMask: 1,
+            collisionFilterMask: 1 | 8 | 2 | 4,
         });
 
         (this.body as any).isObstacle = true;

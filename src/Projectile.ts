@@ -35,7 +35,7 @@ export class Projectile {
             position: new CANNON.Vec3(position.x, position.y, position.z),
             velocity: new CANNON.Vec3(direction.x * speed, direction.y * speed, 0),
             collisionFilterGroup: ownerType === 'player' ? 2 : 4,
-            collisionFilterMask: ownerType === 'player' ? 8 : 1,
+            collisionFilterMask: ownerType === 'player' ? 8 | 16 : 1 | 16,
         });
         (this.body as any).isWeapon = true;
         (this.body as any).ownerType = ownerType;

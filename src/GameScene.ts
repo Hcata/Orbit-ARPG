@@ -191,6 +191,16 @@ export class GameScene {
             const item = bodyA.item || bodyB.item;
             this.collectItem(item);
         }
+
+        // Projectile vs Obstacle
+        if ((bodyA.projectile && bodyB.isObstacle) || (bodyB.projectile && bodyA.isObstacle)) {
+            const proj = bodyA.projectile || bodyB.projectile;
+            const obstacle = bodyA.obstacle || bodyB.obstacle;
+            proj.die(true);
+            if (obstacle.type === ObstacleType.BOMB) {
+                obstacle.die(true);
+            }
+        }
     }
 
     private handlePlayerHit() {
@@ -200,8 +210,18 @@ export class GameScene {
     }
 
     private collectItem(item: Item) {
-        if (item.type === ItemType.SHIELD) {
-            this.player.addShield();
+        switch (item.type) {
+            case ItemType.SHIELD:
+                this.player.addShield();
+                break;
+            case ItemType.SPEED:
+                const originalSpeed = this.player.moveSpeed;
+                this.player.moveSpeed += 3;
+                setTimeout(() => this.player.moveSpeed = originalSpeed, 10000);
+                break;
+            case ItemType.EXTRA_ORBIT:
+                this.player.levelUp();
+                break;
         }
         item.die();
     }
@@ -345,12 +365,16 @@ export class GameScene {
         const maxItems = this.phaseManager.getItemsCount();
         if (this.items.length >= maxItems) return;
 
-        // Shield has "muy baja" probability
-        if (Math.random() > 0.005) return;
+        // Increased spawn rate for better testing/gameplay
+        if (Math.random() > 0.02) return;
 
         const x = (Math.random() - 0.5) * this.MAP_RADIUS;
         const y = (Math.random() - 0.5) * this.MAP_RADIUS;
-        this.items.push(new Item(this.scene, this.world, new THREE.Vector3(x, y, 0), ItemType.SHIELD, this));
+
+        const types = [ItemType.SHIELD, ItemType.SPEED, ItemType.EXTRA_ORBIT];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+
+        this.items.push(new Item(this.scene, this.world, new THREE.Vector3(x, y, 0), randomType, this));
     }
 
     public addProjectile(p: Projectile) {
