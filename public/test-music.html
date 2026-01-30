@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Music Test</title>
+</head>
+
+<body>
+    <h1>Music Test</h1>
+    <button id="playBtn">Play Music</button>
+    <p id="status">Click the button to test music</p>
+
+    <script>
+        document.getElementById('playBtn').addEventListener('click', () => {
+            const audio = new Audio('/music/0-top-battle-game-bgm-264625.mp3');
+            audio.volume = 0.4;
+            audio.loop = true;
+
+            audio.onerror = (e) => {
+                document.getElementById('status').textContent = 'ERROR loading music: ' + e;
+                console.error('Error:', e);
+            };
+
+            audio.oncanplay = () => {
+                document.getElementById('status').textContent = 'Music loaded, attempting to play...';
+            };
+
+            audio.play()
+                .then(() => {
+                    document.getElementById('status').textContent = 'Music is playing!';
+                    console.log('Success!');
+                })
+                .catch(err => {
+                    document.getElementById('status').textContent = 'ERROR playing: ' + err.message;
+                    console.error('Play error:', err);
+                });
+        });
+    </script>
+</body>
+
+</html>

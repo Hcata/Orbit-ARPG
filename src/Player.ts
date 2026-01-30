@@ -16,6 +16,7 @@ export class Player extends BaseCharacter {
     private trailPositions: THREE.Vector3[] = [];
     private trailMeshes: THREE.Mesh[] = [];
     private MAX_TRAIL = 5;
+    private trailFadeTimer: number = 0;
 
     constructor(scene: THREE.Scene, world: CANNON.World, gameScene: any, playerIndex: number = 0, gamepadIndex: number | null = null, color: number = 0x06b6d4, position: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         // Use provided color or default
@@ -47,7 +48,7 @@ export class Player extends BaseCharacter {
         }
 
         this.handleMovement();
-        this.updateTrail();
+        this.updateTrail(deltaTime);
         super.update(deltaTime);
 
         if (this.shieldMesh) {
@@ -171,7 +172,7 @@ export class Player extends BaseCharacter {
         this.trailPositions = [];
     }
 
-    private updateTrail() {
+    private updateTrail(deltaTime: number) {
         if (this.isDead) return;
 
         // Current position
@@ -184,6 +185,7 @@ export class Player extends BaseCharacter {
 
         // Only add to trail if moving
         if (velocity > 0.5) {
+            this.trailFadeTimer = 0; // Reset fade timer when moving
             if (this.trailPositions.length === 0 || currentPos.distanceTo(this.trailPositions[0]) > 0.2) {
                 this.trailPositions.unshift(currentPos);
                 if (this.trailPositions.length > this.MAX_TRAIL) {
@@ -191,9 +193,11 @@ export class Player extends BaseCharacter {
                 }
             }
         } else {
-            // Gradually clear trail when stopped
-            if (Math.random() < 0.1 && this.trailPositions.length > 0) {
+            // Gradually clear trail when stopped - fade out in 0.3 seconds
+            this.trailFadeTimer += deltaTime;
+            if (this.trailFadeTimer >= 0.3 / this.MAX_TRAIL && this.trailPositions.length > 0) {
                 this.trailPositions.pop();
+                this.trailFadeTimer = 0;
             }
         }
 

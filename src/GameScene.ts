@@ -464,6 +464,9 @@ export class GameScene {
         this.lastTime = performance.now();
         this.updatePhaseUI();
 
+        // Start background music
+        soundManager.startMusic();
+
         console.log("Starting game in mode:", this.gameMode === GameMode.SINGLE ? "SINGLE" : "PVP");
 
         if (this.gameMode === GameMode.PVP) {
