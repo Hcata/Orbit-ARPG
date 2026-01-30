@@ -9,8 +9,23 @@
   <body>
     <div id="app"></div>
 
+    <div id="main-menu" class="overlay active">
+      <div class="modal">
+        <h1 class="glow-text">ORBIT ARPG</h1>
+        <div class="input-group">
+          <label for="player-name">Nombre del Piloto:</label>
+          <input type="text" id="player-name" placeholder="Escribe tu nombre..." autocomplete="off">
+        </div>
+        <button id="btn-start" class="btn btn-primary" disabled>INICIAR MISIÓN</button>
+        <button id="btn-instructions" class="btn">Instrucciones</button>
+      </div>
+    </div>
+
     <div class="ui-layer">
       <div class="top-bar">
+        <div class="phase-container">
+          <span id="phase-name">Fase 1: Tutorial</span>
+        </div>
         <div class="score-container">
           <span class="score-label">Kills</span>
           <span id="score">0</span>
@@ -18,7 +33,6 @@
       </div>
 
       <div class="bottom-bar">
-        <button id="btn-instructions" class="btn">Instrucciones</button>
         <button id="btn-reset" class="btn btn-secondary">Reset Global</button>
       </div>
     </div>
@@ -33,7 +47,7 @@
             <li>Tus armas orbitan automáticamente a tu alrededor.</li>
             <li>Toca el <b>núcleo central</b> del enemigo con tus armas para matarlo.</li>
             <li>¡Cuidado! Si su arma toca tu núcleo, pierdes.</li>
-            <li>Al matar, mejoras tu radio, velocidad y cantidad de armas.</li>
+            <li>Al matar, progresas por las fases y subes de nivel.</li>
           </ul>
         </div>
         <button id="btn-close-instructions" class="btn">¡Entendido!</button>
@@ -43,10 +57,20 @@
     <!-- Game Over Overlay -->
     <div id="gameover-overlay" class="overlay">
       <div class="modal">
-        <h2 id="gameover-title">Game Over</h2>
-        <p>Tu núcleo ha sido destruido.</p>
-        <p>Puntaje final: <span id="final-score">0</span></p>
-        <button id="btn-restart" class="btn">Reiniciar Juego</button>
+        <h2 id="gameover-title">MISIÓN FALLIDA</h2>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span>Puntaje:</span>
+            <span id="final-score">0</span>
+          </div>
+        </div>
+        <div id="leaderboard-section">
+          <h3>Ranking Global</h3>
+          <div id="leaderboard-list">
+            <!-- Ranking populated by JS -->
+          </div>
+        </div>
+        <button id="btn-restart" class="btn btn-primary">Reintentar</button>
       </div>
     </div>
 

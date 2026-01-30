@@ -5,11 +5,13 @@ import { BaseCharacter } from './BaseCharacter';
 export class Player extends BaseCharacter {
     public level: number = 1;
     public moveSpeed: number = 7;
+    public hasShield: boolean = false;
     private keys: { [key: string]: boolean } = {};
+    private shieldMesh: THREE.Mesh | null = null;
 
     constructor(scene: THREE.Scene, world: CANNON.World, gameScene: any) {
-        // Start at 0,0 for 2D
-        super(scene, world, new THREE.Vector3(0, 0, 0), 0x2563eb, 'player', gameScene);
+        // Cyan color for player
+        super(scene, world, new THREE.Vector3(0, 0, 0), 0x06b6d4, 'player', gameScene);
 
         window.addEventListener('keydown', (e) => this.keys[e.code] = true);
         window.addEventListener('keyup', (e) => this.keys[e.code] = false);
@@ -20,6 +22,10 @@ export class Player extends BaseCharacter {
 
         this.handleMovement();
         super.update(deltaTime);
+
+        if (this.shieldMesh) {
+            this.shieldMesh.rotation.z += deltaTime * 2;
+        }
     }
 
     private handleMovement() {
@@ -40,12 +46,34 @@ export class Player extends BaseCharacter {
         this.body.velocity.z = 0;
     }
 
+    public addShield() {
+        if (this.hasShield) return;
+        this.hasShield = true;
+
+        const geo = new THREE.RingGeometry(0.7, 0.8, 32);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.5 });
+        this.shieldMesh = new THREE.Mesh(geo, mat);
+        this.mesh.add(this.shieldMesh);
+    }
+
+    public takeDamage(): boolean {
+        if (this.hasShield) {
+            this.hasShield = false;
+            if (this.shieldMesh) {
+                this.mesh.remove(this.shieldMesh);
+                this.shieldMesh = null;
+            }
+            return false; // Did not die
+        }
+        return true; // Died
+    }
+
     public levelUp() {
-        if (this.level < 4) {
+        if (this.level < 10) { // Increased max level
             this.level++;
-            const count = this.level;
-            const radius = 1.2 + (this.level - 1) * 0.6;
-            const speed = 2.0 + (this.level - 1) * 0.8;
+            const count = Math.min(6, 1 + Math.floor(this.level / 2));
+            const radius = 1.2 + (this.level - 1) * 0.2;
+            const speed = 2.0 + (this.level - 1) * 0.3;
 
             this.orbitSystem.setStats(count, radius, speed, this.mesh.position);
 
@@ -57,10 +85,14 @@ export class Player extends BaseCharacter {
     public reset() {
         this.level = 1;
         this.isDead = false;
+        this.hasShield = false;
+        if (this.shieldMesh) {
+            this.mesh.remove(this.shieldMesh);
+            this.shieldMesh = null;
+        }
         this.body.position.set(0, 0, 0);
         this.body.velocity.set(0, 0, 0);
         this.orbitSystem.setStats(1, 1.5, 2.0, new THREE.Vector3(0, 0, 0));
-        // Ensure mesh is in scene
         if (!this.mesh.parent) {
             this.scene.add(this.mesh);
         }
