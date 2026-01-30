@@ -6,6 +6,7 @@ import { PhaseManager, GamePhase } from './PhaseManager';
 import { Projectile } from './Projectile';
 import { Obstacle, ObstacleType } from './Obstacle';
 import { Item, ItemType } from './Item';
+import { soundManager } from './SoundManager';
 
 
 export const GameMode = {
@@ -205,16 +206,64 @@ export class GameScene {
 
     private handlePlayerHit(player: Player) {
         if (player.takeDamage()) {
+            this.createPlayerDeathEffect(player.mesh.position, player.color);
+            soundManager.playDeath();
             player.die();
 
             // Check if all players are dead
             if (this.player.isDead && this.pvpPlayers.every(p => p.isDead)) {
-                this.gameOver();
+                setTimeout(() => this.gameOver(), 1500);
             }
         }
     }
 
+    private createPlayerDeathEffect(pos: THREE.Vector3, playerColor: number) {
+        // Intense starburst flash using player's color
+        const geo = new THREE.CircleGeometry(0.1, 16);
+        const mat = new THREE.MeshBasicMaterial({ color: playerColor, transparent: true });
+        const flash = new THREE.Mesh(new THREE.CircleGeometry(5, 32), mat);
+        flash.position.set(pos.x, pos.y, 1);
+        this.scene.add(flash);
+
+        let op = 1.0;
+        const animateFlash = () => {
+            op -= 0.05;
+            if (op <= 0) {
+                this.scene.remove(flash);
+            } else {
+                flash.material.opacity = op;
+                flash.scale.multiplyScalar(1.1);
+                requestAnimationFrame(animateFlash);
+            }
+        };
+        animateFlash();
+
+        // Particles
+        for (let i = 0; i < 50; i++) {
+            const p = new THREE.Mesh(geo, mat.clone());
+            p.position.copy(pos);
+            this.scene.add(p);
+            const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, 0).normalize();
+            const speed = 5 + Math.random() * 10;
+            let life = 1.0;
+            const anim = () => {
+                if (life <= 0) {
+                    this.scene.remove(p);
+                } else {
+                    p.position.x += dir.x * speed * 0.016;
+                    p.position.y += dir.y * speed * 0.016;
+                    life -= 0.016;
+                    (p.material as THREE.MeshBasicMaterial).opacity = life;
+                    requestAnimationFrame(anim);
+                }
+            };
+            anim();
+        }
+    }
+
     private collectItem(item: Item, player: Player) {
+        this.createItemCollectEffect(item.mesh.position);
+        soundManager.playCollect();
         switch (item.type) {
             case ItemType.SHIELD:
                 player.addShield();
@@ -226,9 +275,87 @@ export class GameScene {
                 break;
             case ItemType.EXTRA_ORBIT:
                 player.levelUp();
+                this.createLevelUpEffect(player.mesh.position);
+                soundManager.playFanfare();
                 break;
         }
         item.die();
+    }
+
+    private createItemCollectEffect(pos: THREE.Vector3) {
+        // Gold/Cyan sparks (matching player tones for visibility)
+        const colors = [0xffd700, 0x00f2ff];
+        for (let i = 0; i < 16; i++) {
+            const geo = new THREE.PlaneGeometry(0.1, 0.5);
+            const mat = new THREE.MeshBasicMaterial({
+                color: colors[i % 2],
+                transparent: true,
+                opacity: 1.0
+            });
+            const p = new THREE.Mesh(geo, mat);
+            p.position.set(pos.x, pos.y, 1.0); // Higher Z
+            p.rotation.z = Math.random() * Math.PI * 2;
+            this.scene.add(p);
+
+            const speed = 3 + Math.random() * 3;
+            let life = 0.6;
+            const anim = () => {
+                if (life <= 0) {
+                    this.scene.remove(p);
+                } else {
+                    p.translateY(speed * 0.016);
+                    life -= 0.016;
+                    mat.opacity = life / 0.6;
+                    requestAnimationFrame(anim);
+                }
+            };
+            anim();
+        }
+    }
+
+    private createLevelUpEffect(pos: THREE.Vector3) {
+        // Confetti rain - FULL SCREEN
+        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffd700];
+        const camX = this.camera.position.x;
+        const camY = this.camera.position.y;
+
+        // Spawn 150 larger confetti pieces
+        for (let i = 0; i < 150; i++) {
+            const size = 0.2 + Math.random() * 0.15; // Larger pieces
+            const geo = new THREE.PlaneGeometry(size, size);
+            const mat = new THREE.MeshBasicMaterial({
+                color: colors[Math.floor(Math.random() * colors.length)],
+                side: THREE.DoubleSide,
+                transparent: true
+            });
+            const p = new THREE.Mesh(geo, mat);
+
+            // Random position in a wide area around the camera
+            const spawnX = camX + (Math.random() - 0.5) * 30; // Wide horizontal spread
+            const spawnY = camY + 15 + Math.random() * 5;     // Start high above camera
+
+            p.position.set(spawnX, spawnY, 2.0); // View priority Z
+            this.scene.add(p);
+
+            const speed = 4 + Math.random() * 4;
+            const rotSpeed = 5 + Math.random() * 5;
+            const drift = (Math.random() - 0.5) * 4;
+            let life = 4.0;
+            const anim = () => {
+                if (life <= 0) {
+                    this.scene.remove(p);
+                } else {
+                    p.position.y -= speed * 0.016;
+                    p.position.x += drift * 0.016;
+                    p.rotation.x += rotSpeed * 0.016;
+                    p.rotation.z += rotSpeed * 0.016;
+                    life -= 0.016;
+                    if (life < 1.0) mat.opacity = life; // Fade out at the end
+                    requestAnimationFrame(anim);
+                }
+            };
+            anim();
+        }
     }
 
     private createEnvironment() {
@@ -297,7 +424,15 @@ export class GameScene {
         document.getElementById('btn-restart')?.addEventListener('click', () => {
             this.resetGame();
             document.getElementById('gameover-overlay')?.classList.remove('active');
+            soundManager.startMusic(); // Restart music
             this.startGame();
+        });
+
+        document.getElementById('btn-start-single')?.addEventListener('click', () => {
+            soundManager.startMusic();
+        });
+        document.getElementById('btn-start-pvp')?.addEventListener('click', () => {
+            soundManager.startMusic();
         });
 
         document.getElementById('btn-instructions')?.addEventListener('click', () => {
@@ -307,6 +442,21 @@ export class GameScene {
         document.getElementById('btn-close-instructions')?.addEventListener('click', () => {
             document.getElementById('instructions-overlay')?.classList.remove('active');
         });
+
+        const toggleFullscreen = () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        };
+
+        document.getElementById('btn-fullscreen')?.addEventListener('click', toggleFullscreen);
+        document.getElementById('btn-fullscreen-menu')?.addEventListener('click', toggleFullscreen);
     }
 
     private startGame() {
@@ -460,6 +610,7 @@ export class GameScene {
             this.player.levelUp();
         }
 
+        soundManager.playLaser(); // Laser impacting rock sound
         enemy.die();
         this.enemies = this.enemies.filter(e => e !== enemy);
 
@@ -468,6 +619,8 @@ export class GameScene {
             // Optional: Give reward on phase up
             if (this.phaseManager.currentPhase > GamePhase.PHASE_1_TUTORIAL) {
                 this.player.levelUp();
+                this.createLevelUpEffect(this.player.mesh.position);
+                soundManager.playFanfare();
             }
         }
     }
@@ -475,6 +628,7 @@ export class GameScene {
     private gameOver() {
         if (this.isGameOver) return;
         this.isGameOver = true;
+        soundManager.stopMusic(); // Stop music on game over
         document.getElementById('final-score')!.innerText = this.score.toString();
         this.showLeaderboard();
         document.getElementById('gameover-overlay')?.classList.add('active');
@@ -502,7 +656,7 @@ export class GameScene {
 
     private resetGame() {
         this.score = 0;
-        this.isGameOver = true;
+        this.isGameOver = false;
         document.getElementById('score')!.innerText = '0';
 
         this.enemies.forEach(e => e.die());

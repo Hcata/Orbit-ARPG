@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { soundManager } from './SoundManager';
 
 export class Projectile {
     public mesh: THREE.Mesh;
@@ -63,7 +64,7 @@ export class Projectile {
 
         if (hit) {
             this.createExplosionEffect();
-            this.playSound('explosion');
+            soundManager.playExplosion();
         }
 
         this.scene.remove(this.mesh);

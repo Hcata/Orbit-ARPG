@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { BaseCharacter } from './BaseCharacter';
+import { soundManager } from './SoundManager';
+import { OrbitSystem } from './OrbitSystem';
 
 export class Player extends BaseCharacter {
     public level: number = 1;
@@ -11,6 +13,9 @@ export class Player extends BaseCharacter {
     private invulnerabilityTimer: number = 0;
     private playerIndex: number;
     private gamepadIndex: number | null;
+    private trailPositions: THREE.Vector3[] = [];
+    private trailMeshes: THREE.Mesh[] = [];
+    private MAX_TRAIL = 5;
 
     constructor(scene: THREE.Scene, world: CANNON.World, gameScene: any, playerIndex: number = 0, gamepadIndex: number | null = null, color: number = 0x06b6d4, position: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         // Use provided color or default
@@ -42,6 +47,7 @@ export class Player extends BaseCharacter {
         }
 
         this.handleMovement();
+        this.updateTrail();
         super.update(deltaTime);
 
         if (this.shieldMesh) {
@@ -133,9 +139,85 @@ export class Player extends BaseCharacter {
         }
         this.body.position.set(0, 0, 0);
         this.body.velocity.set(0, 0, 0);
-        this.orbitSystem.setStats(1, 1.5, 2.0, new THREE.Vector3(0, 0, 0));
+
+        // Re-add mesh and body if they were removed
         if (!this.mesh.parent) {
             this.scene.add(this.mesh);
         }
+
+        // Re-add body to physics world if it was removed
+        if (!this.world.bodies.includes(this.body)) {
+            this.world.addBody(this.body);
+        }
+
+
+        // Recreate orbit system since it was destroyed
+        this.orbitSystem.destroy();
+        this.orbitSystem = new OrbitSystem(
+            this.scene,
+            this.world,
+            1,
+            1.5,
+            2.0,
+            this.color,
+            this.type,
+            this.gameScene,
+            new THREE.Vector3(0, 0, 0)
+        );
+
+        // Clear trail
+        this.trailMeshes.forEach(m => this.scene.remove(m));
+        this.trailMeshes = [];
+        this.trailPositions = [];
+    }
+
+    private updateTrail() {
+        if (this.isDead) return;
+
+        // Current position
+        const currentPos = this.mesh.position.clone();
+        const velocity = new CANNON.Vec3(this.body.velocity.x, this.body.velocity.y, 0).length();
+
+        // Always remove old meshes first
+        this.trailMeshes.forEach(m => this.scene.remove(m));
+        this.trailMeshes = [];
+
+        // Only add to trail if moving
+        if (velocity > 0.5) {
+            if (this.trailPositions.length === 0 || currentPos.distanceTo(this.trailPositions[0]) > 0.2) {
+                this.trailPositions.unshift(currentPos);
+                if (this.trailPositions.length > this.MAX_TRAIL) {
+                    this.trailPositions.pop();
+                }
+            }
+        } else {
+            // Gradually clear trail when stopped
+            if (Math.random() < 0.1 && this.trailPositions.length > 0) {
+                this.trailPositions.pop();
+            }
+        }
+
+        // Render current trail
+        for (let i = 0; i < this.trailPositions.length; i++) {
+            const opacity = 0.5 * (1 - i / this.MAX_TRAIL);
+            const scale = 1 - (i / this.MAX_TRAIL) * 0.5;
+            const geo = new THREE.CircleGeometry(0.5 * scale, 16);
+            const mat = new THREE.MeshBasicMaterial({
+                color: this.color,
+                transparent: true,
+                opacity: opacity
+            });
+            const m = new THREE.Mesh(geo, mat);
+            m.position.copy(this.trailPositions[i]);
+            m.position.z = -0.1;
+            this.scene.add(m);
+            this.trailMeshes.push(m);
+        }
+    }
+
+    public die() {
+        super.die();
+        this.trailMeshes.forEach(m => this.scene.remove(m));
+        this.trailMeshes = [];
     }
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { soundManager } from './SoundManager';
 
 export enum ObstacleType {
     BOMB,
@@ -72,6 +73,7 @@ export class Obstacle {
 
         if (exploded && this.type === ObstacleType.BOMB) {
             this.createExplosionEffect();
+            soundManager.playExplosion();
         }
 
         this.scene.remove(this.mesh);

@@ -10,7 +10,7 @@ export abstract class BaseCharacter {
 
     protected scene: THREE.Scene;
     protected world: CANNON.World;
-    protected color: number;
+    public color: number;
     protected type: 'player' | 'enemy';
     protected gameScene: any;
 
