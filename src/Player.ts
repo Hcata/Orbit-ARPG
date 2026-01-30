@@ -9,13 +9,25 @@ export class Player extends BaseCharacter {
     private keys: { [key: string]: boolean } = {};
     private shieldMesh: THREE.Mesh | null = null;
     private invulnerabilityTimer: number = 0;
+    private playerIndex: number;
+    private gamepadIndex: number | null;
 
-    constructor(scene: THREE.Scene, world: CANNON.World, gameScene: any) {
-        // Cyan color for player
-        super(scene, world, new THREE.Vector3(0, 0, 0), 0x06b6d4, 'player', gameScene);
+    constructor(scene: THREE.Scene, world: CANNON.World, gameScene: any, playerIndex: number = 0, gamepadIndex: number | null = null, color: number = 0x06b6d4, position: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
+        // Use provided color or default
+        super(scene, world, position, color, 'player', gameScene);
 
+        this.playerIndex = playerIndex;
+        this.gamepadIndex = gamepadIndex;
+
+        // Register keyboard for all players but they share keys, or we can partition it
+        // For simplicity, player 0 uses WASD/Arrows. 
+        // We add the listeners once or just check keys.
         window.addEventListener('keydown', (e) => this.keys[e.code] = true);
         window.addEventListener('keyup', (e) => this.keys[e.code] = false);
+    }
+
+    public setGamepadIndex(index: number | null) {
+        this.gamepadIndex = index;
     }
 
     public update(deltaTime: number) {
@@ -40,10 +52,27 @@ export class Player extends BaseCharacter {
     private handleMovement() {
         const vel = new CANNON.Vec3(0, 0, 0);
 
-        if (this.keys['ArrowUp'] || this.keys['KeyW']) vel.y += 1;
-        if (this.keys['ArrowDown'] || this.keys['KeyS']) vel.y -= 1;
-        if (this.keys['ArrowLeft'] || this.keys['KeyA']) vel.x -= 1;
-        if (this.keys['ArrowRight'] || this.keys['KeyD']) vel.x += 1;
+        // Keyboard movement (only for player 0)
+        if (this.playerIndex === 0) {
+            if (this.keys['ArrowUp'] || this.keys['KeyW']) vel.y += 1;
+            if (this.keys['ArrowDown'] || this.keys['KeyS']) vel.y -= 1;
+            if (this.keys['ArrowLeft'] || this.keys['KeyA']) vel.x -= 1;
+            if (this.keys['ArrowRight'] || this.keys['KeyD']) vel.x += 1;
+        }
+
+        // Gamepad movement
+        if (this.gamepadIndex !== null) {
+            const gamepads = navigator.getGamepads();
+            const gp = gamepads[this.gamepadIndex];
+            if (gp) {
+                const axisX = gp.axes[0];
+                const axisY = gp.axes[1];
+
+                // Deadzone
+                if (Math.abs(axisX) > 0.1) vel.x += axisX;
+                if (Math.abs(axisY) > 0.1) vel.y -= axisY; // Gamepad Y is inverted
+            }
+        }
 
         if (vel.length() > 0) {
             vel.normalize();

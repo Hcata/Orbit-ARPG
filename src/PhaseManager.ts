@@ -1,9 +1,10 @@
-export enum GamePhase {
-    PHASE_1_TUTORIAL,
-    PHASE_2_ESCALATION,
-    PHASE_3_OBSTACLES,
-    PHASE_4_FREE
-}
+export const GamePhase = {
+    PHASE_1_TUTORIAL: 0,
+    PHASE_2_ESCALATION: 1,
+    PHASE_3_OBSTACLES: 2,
+    PHASE_4_FREE: 3
+} as const;
+export type GamePhase = typeof GamePhase[keyof typeof GamePhase];
 
 export class PhaseManager {
     public currentPhase: GamePhase = GamePhase.PHASE_1_TUTORIAL;

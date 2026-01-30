@@ -6,12 +6,13 @@ import { PhaseManager, GamePhase } from './PhaseManager';
 import { Projectile } from './Projectile';
 import { Obstacle, ObstacleType } from './Obstacle';
 import { Item, ItemType } from './Item';
-import { PVPManager, PVPState } from './PVPManager';
 
-export enum GameMode {
-    SINGLE,
-    PVP
-}
+
+export const GameMode = {
+    SINGLE: 0,
+    PVP: 1
+} as const;
+export type GameMode = typeof GameMode[keyof typeof GameMode];
 
 export class GameScene {
     private scene!: THREE.Scene;
@@ -27,7 +28,6 @@ export class GameScene {
     private items: Item[] = [];
 
     private phaseManager: PhaseManager = new PhaseManager();
-    private pvpManager: PVPManager = new PVPManager();
     private gameMode: GameMode = GameMode.SINGLE;
 
     private score: number = 0;
@@ -36,7 +36,6 @@ export class GameScene {
     private lastTime: number = 0;
     private MAP_RADIUS = 15;
     private playerName: string = '';
-    private connectedGamepads: Set<number> = new Set();
 
     private bodiesToRemove: CANNON.Body[] = [];
 
@@ -171,25 +170,26 @@ export class GameScene {
         // Enemy weapons & Projectiles vs Player
         if ((bodyA.ownerType === 'enemy' && bodyA.isWeapon && bodyB.character instanceof Player) ||
             (bodyB.ownerType === 'enemy' && bodyB.isWeapon && bodyA.character instanceof Player)) {
+            const targetPlayer = bodyA.character instanceof Player ? bodyA.character : bodyB.character;
             const proj = bodyA.projectile || bodyB.projectile;
             if (proj) proj.die(true);
-            this.handlePlayerHit();
+            this.handlePlayerHit(targetPlayer);
         }
-
-        // Projectiles vs Projectiles (optional, but good for chaos)
 
         // Bomb vs Player
         if ((bodyA.isObstacle && bodyA.obstacle.type === ObstacleType.BOMB && bodyB.character instanceof Player) ||
             (bodyB.isObstacle && bodyB.obstacle.type === ObstacleType.BOMB && bodyA.character instanceof Player)) {
+            const targetPlayer = bodyA.character instanceof Player ? bodyA.character : bodyB.character;
             const obstacle = bodyA.obstacle || bodyB.obstacle;
             obstacle.die(true);
-            this.handlePlayerHit();
+            this.handlePlayerHit(targetPlayer);
         }
 
         // Item vs Player
         if ((bodyA.isItem && bodyB.character instanceof Player) || (bodyB.isItem && bodyA.character instanceof Player)) {
+            const targetPlayer = bodyA.character instanceof Player ? bodyA.character : bodyB.character;
             const item = bodyA.item || bodyB.item;
-            this.collectItem(item);
+            this.collectItem(item, targetPlayer);
         }
 
         // Projectile vs Obstacle
@@ -203,24 +203,29 @@ export class GameScene {
         }
     }
 
-    private handlePlayerHit() {
-        if (this.player.takeDamage()) {
-            this.gameOver();
+    private handlePlayerHit(player: Player) {
+        if (player.takeDamage()) {
+            player.die();
+
+            // Check if all players are dead
+            if (this.player.isDead && this.pvpPlayers.every(p => p.isDead)) {
+                this.gameOver();
+            }
         }
     }
 
-    private collectItem(item: Item) {
+    private collectItem(item: Item, player: Player) {
         switch (item.type) {
             case ItemType.SHIELD:
-                this.player.addShield();
+                player.addShield();
                 break;
             case ItemType.SPEED:
-                const originalSpeed = this.player.moveSpeed;
-                this.player.moveSpeed += 3;
-                setTimeout(() => this.player.moveSpeed = originalSpeed, 10000);
+                const originalSpeed = player.moveSpeed;
+                player.moveSpeed += 3;
+                setTimeout(() => player.moveSpeed = originalSpeed, 10000);
                 break;
             case ItemType.EXTRA_ORBIT:
-                this.player.levelUp();
+                player.levelUp();
                 break;
         }
         item.die();
@@ -308,6 +313,67 @@ export class GameScene {
         this.isGameOver = false;
         this.lastTime = performance.now();
         this.updatePhaseUI();
+
+        console.log("Starting game in mode:", this.gameMode === GameMode.SINGLE ? "SINGLE" : "PVP");
+
+        if (this.gameMode === GameMode.PVP) {
+            this.setupPVP();
+        } else {
+            // In single player, check if a gamepad is available for the main player
+            const gamepads = navigator.getGamepads();
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    this.player.setGamepadIndex(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    private setupPVP() {
+        // Clear any existing pvp players
+        this.pvpPlayers.forEach(p => p.die());
+        this.pvpPlayers = [];
+
+        const gamepads = navigator.getGamepads();
+        const gamepadIndices: number[] = [];
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i]) gamepadIndices.push(i);
+        }
+
+        console.log("Gamepads detected for PVP:", gamepadIndices);
+
+        const colors = [0x06b6d4, 0x3b82f6, 0xef4444, 0xeab308];
+
+        // Setup Player 1 (Main player)
+        this.player.reset();
+        this.player.mesh.position.set(-5, 0, 0);
+        this.player.body.position.set(-5, 0, 0);
+
+        // If we have gamepads, P1 can use keyboard OR Gamepad 0
+        // and P2 uses Gamepad 1, etc.
+        // BUT if we only have 1 gamepad, we need it for P2 to have a duel.
+
+        if (gamepadIndices.length === 1) {
+            // Only 1 gamepad: P1 = Keyboard, P2 = Gamepad 0
+            console.log("1 gamepad: P1=KB, P2=GP0");
+            const p2 = new Player(this.scene, this.world, this, 1, gamepadIndices[0], colors[1], new THREE.Vector3(5, 0, 0));
+            this.pvpPlayers.push(p2);
+        } else {
+            // Multiple gamepads: P1 = GP0, P2 = GP1, etc.
+            console.log("Multiple gamepads: Mapping sticks to players");
+            if (gamepadIndices.length > 0) {
+                this.player.setGamepadIndex(gamepadIndices[0]);
+            }
+
+            for (let i = 1; i < gamepadIndices.length; i++) {
+                if (i >= 4) break;
+                const p = new Player(this.scene, this.world, this, i, gamepadIndices[i], colors[i], new THREE.Vector3(5, (i - 1) * 3, 0));
+                this.pvpPlayers.push(p);
+            }
+        }
+
+        console.log("Total PVP players spawned:", 1 + this.pvpPlayers.length);
     }
 
     private updatePhaseUI() {
@@ -330,8 +396,8 @@ export class GameScene {
         // Logic for specialized enemies
         if (this.phaseManager.currentPhase === GamePhase.PHASE_2_ESCALATION) {
             tier = this.phaseManager.currentSubLevel;
-        } else if (this.phaseManager.currentPhase === GamePhase.PHASE_4_FREE) {
-            const isSpecialRound = Math.random() < 0.2; // Small chance for extra special enemies
+        }
+        if (this.phaseManager.currentPhase === GamePhase.PHASE_4_FREE) {
             const specialCount = this.phaseManager.getSpecialEnemyCount();
 
             // Check current special count
@@ -449,6 +515,9 @@ export class GameScene {
         this.items = [];
 
         this.player.reset();
+        this.pvpPlayers.forEach(p => p.die());
+        this.pvpPlayers = [];
+
         this.phaseManager.reset();
         this.updatePhaseUI();
     }
@@ -468,17 +537,34 @@ export class GameScene {
 
         if (!this.isGameOver) {
             this.player.update(deltaTime);
+            this.pvpPlayers.forEach(p => p.update(deltaTime));
 
-            const pPos = this.player.body.position;
-            const dist = Math.sqrt(pPos.x * pPos.x + pPos.y * pPos.y);
-            if (dist > this.MAP_RADIUS) {
-                const ratio = this.MAP_RADIUS / dist;
-                this.player.body.position.x *= ratio;
-                this.player.body.position.y *= ratio;
-            }
+            const players = [this.player, ...this.pvpPlayers];
+
+            players.forEach(p => {
+                const pPos = p.body.position;
+                const dist = Math.sqrt(pPos.x * pPos.x + pPos.y * pPos.y);
+                if (dist > this.MAP_RADIUS) {
+                    const ratio = this.MAP_RADIUS / dist;
+                    p.body.position.x *= ratio;
+                    p.body.position.y *= ratio;
+                }
+            });
 
             this.enemies.forEach(enemy => {
-                enemy.moveTowards(this.player.mesh.position);
+                // Enemies follow nearest player
+                let nearestPlayer = this.player;
+                let minDist = enemy.mesh.position.distanceTo(this.player.mesh.position);
+
+                this.pvpPlayers.forEach(p => {
+                    const d = enemy.mesh.position.distanceTo(p.mesh.position);
+                    if (d < minDist) {
+                        minDist = d;
+                        nearestPlayer = p;
+                    }
+                });
+
+                enemy.moveTowards(nearestPlayer.mesh.position);
                 enemy.update(deltaTime);
             });
 
@@ -496,9 +582,21 @@ export class GameScene {
             if (Math.random() < 0.01) this.spawnObstacle();
             if (Math.random() < 0.01) this.spawnItem();
 
-            // Camera follow
-            this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, this.player.mesh.position.x, 0.1);
-            this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.player.mesh.position.y, 0.1);
+            // Camera follow (center between players or focus on P1)
+            if (this.gameMode === GameMode.SINGLE) {
+                this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, this.player.mesh.position.x, 0.1);
+                this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.player.mesh.position.y, 0.1);
+            } else {
+                // Focus on center of active players
+                const activePlayers = players.filter(p => !p.isDead);
+                if (activePlayers.length > 0) {
+                    const center = new THREE.Vector3();
+                    activePlayers.forEach(p => center.add(p.mesh.position));
+                    center.divideScalar(activePlayers.length);
+                    this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, center.x, 0.1);
+                    this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, center.y, 0.1);
+                }
+            }
         }
 
         this.renderer.render(this.scene, this.camera);
