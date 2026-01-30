@@ -36,6 +36,8 @@ export class Item {
             type: CANNON.Body.KINEMATIC,
             shape: shape,
             position: new CANNON.Vec3(position.x, position.y, position.z),
+            collisionFilterGroup: 32,
+            collisionFilterMask: 1,
         });
 
         (this.body as any).isItem = true;

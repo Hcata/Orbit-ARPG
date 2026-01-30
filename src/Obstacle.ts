@@ -41,6 +41,8 @@ export class Obstacle {
             type: type === ObstacleType.WALL ? CANNON.Body.STATIC : CANNON.Body.DYNAMIC,
             shape: shape,
             position: new CANNON.Vec3(position.x, position.y, position.z),
+            collisionFilterGroup: 16,
+            collisionFilterMask: 1,
         });
 
         (this.body as any).isObstacle = true;

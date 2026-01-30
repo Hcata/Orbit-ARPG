@@ -45,7 +45,7 @@ export abstract class BaseCharacter {
             shape: shape,
             position: new CANNON.Vec3(position.x, position.y, position.z),
             collisionFilterGroup: type === 'player' ? 1 : 8,
-            collisionFilterMask: type === 'player' ? 4 | 8 | 16 : 2 | 1 | 16,
+            collisionFilterMask: type === 'player' ? 4 | 8 | 16 | 32 : 1 | 2 | 16,
         });
 
         (this.body as any).character = this;
