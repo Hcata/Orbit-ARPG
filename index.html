@@ -117,6 +117,30 @@
     </div>
   </div>
 
+  <!-- Pause Menu Overlay -->
+  <div id="pause-overlay" class="overlay">
+    <div class="modal">
+      <h2>PAUSA</h2>
+      <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem;">
+        <button id="btn-resume" class="btn btn-primary">Continuar</button>
+        <button id="btn-pause-controls" class="btn btn-secondary">Configurar Controles</button>
+        <button id="btn-pause-restart" class="btn btn-secondary">Reiniciar Partida</button>
+        <button id="btn-pause-menu" class="btn btn-secondary">Volver al Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls Configuration Overlay -->
+  <div id="controls-overlay" class="overlay">
+    <div class="modal" style="max-width: 600px;">
+      <h2>CONFIGURAR CONTROLES</h2>
+      <div id="controls-config-content">
+        <!-- Populated by JS -->
+      </div>
+      <button id="btn-close-controls" class="btn">Cerrar</button>
+    </div>
+  </div>
+
   <script type="module" src="src/main.ts"></script>
 </body>
 
