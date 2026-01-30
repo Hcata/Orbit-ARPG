@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap');
 
 :root {
-  --primary: #06b6d4;
-  /* Cyan neon */
-  --primary-glow: rgba(6, 182, 212, 0.4);
-  --secondary: #f43f5e;
-  /* Crimson neon */
-  --bg: #020617;
-  /* Very dark navy */
-  --surface: #0f172a;
-  --glass: rgba(15, 23, 42, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --text: #f8fafc;
-  --text-muted: #94a3b8;
+  --primary: #0891b2;
+  /* Deeper Cyan */
+  --primary-glow: rgba(8, 145, 178, 0.2);
+  --secondary: #e11d48;
+  /* Deeper Crimson */
+  --bg: #f8fafc;
+  /* Clean White/Slate */
+  --surface: #ffffff;
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --text: #0f172a;
+  --text-muted: #64748b;
 }
 
 * {

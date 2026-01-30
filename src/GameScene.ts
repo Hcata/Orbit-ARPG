@@ -107,7 +107,7 @@ export class GameScene {
 
     private initThree() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x020617); // Dark navy
+        this.scene.background = new THREE.Color(0xf1f5f9); // Light slate background
 
         const aspect = window.innerWidth / window.innerHeight;
         const viewSize = 25;
@@ -208,13 +208,13 @@ export class GameScene {
 
     private createEnvironment() {
         const floorGeo = new THREE.CircleGeometry(this.MAP_RADIUS, 64);
-        const floorMat = new THREE.MeshBasicMaterial({ color: 0x0f172a }); // Slightly lighter than background
+        const floorMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Pure white floor
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.position.z = -1;
         this.scene.add(floor);
 
         const borderGeo = new THREE.RingGeometry(this.MAP_RADIUS, this.MAP_RADIUS + 0.2, 64);
-        const borderMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.3 });
+        const borderMat = new THREE.MeshBasicMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.5 });
         const border = new THREE.Mesh(borderGeo, borderMat);
         border.position.z = -0.5;
         this.scene.add(border);
