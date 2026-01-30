@@ -6,6 +6,12 @@ import { PhaseManager, GamePhase } from './PhaseManager';
 import { Projectile } from './Projectile';
 import { Obstacle, ObstacleType } from './Obstacle';
 import { Item, ItemType } from './Item';
+import { PVPManager, PVPState } from './PVPManager';
+
+export enum GameMode {
+    SINGLE,
+    PVP
+}
 
 export class GameScene {
     private scene!: THREE.Scene;
@@ -14,18 +20,23 @@ export class GameScene {
     private world!: CANNON.World;
 
     private player!: Player;
+    private pvpPlayers: Player[] = [];
     private enemies: Enemy[] = [];
     private projectiles: Projectile[] = [];
     private obstacles: Obstacle[] = [];
     private items: Item[] = [];
 
     private phaseManager: PhaseManager = new PhaseManager();
+    private pvpManager: PVPManager = new PVPManager();
+    private gameMode: GameMode = GameMode.SINGLE;
+
     private score: number = 0;
     private isGameOver: boolean = true; // Start at main menu
 
     private lastTime: number = 0;
     private MAP_RADIUS = 15;
     private playerName: string = '';
+    private connectedGamepads: Set<number> = new Set();
 
     private bodiesToRemove: CANNON.Body[] = [];
 
@@ -37,7 +48,61 @@ export class GameScene {
         this.player = new Player(this.scene, this.world, this);
 
         this.setupUI();
+        this.setupGamepadHandlers();
         this.animate(0);
+    }
+
+    private setupGamepadHandlers() {
+        window.addEventListener("gamepadconnected", (e) => {
+            console.log("Gamepad connected at index %d: %s. %d buttons, %d axes.",
+                e.gamepad.index, e.gamepad.id,
+                e.gamepad.buttons.length, e.gamepad.axes.length);
+            this.updatePlayerSlots();
+        });
+
+        window.addEventListener("gamepaddisconnected", (e) => {
+            console.log("Gamepad disconnected from index %d", e.gamepad.index);
+            this.updatePlayerSlots();
+        });
+    }
+
+    private updatePlayerSlots() {
+        const gamepads = navigator.getGamepads();
+        let connectedCount = 0;
+
+        // Slot 1 is always Keyboard/Joy
+        const slot1 = document.getElementById('slot-1');
+        if (slot1) slot1.classList.remove('disconnected');
+        connectedCount++;
+
+        // Update slots 2-4 based on connected gamepads
+        const gamepadIndices = [];
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i]) gamepadIndices.push(i);
+        }
+
+        for (let i = 2; i <= 4; i++) {
+            const slot = document.getElementById(`slot-${i}`);
+            const gamepadForSlot = gamepadIndices[i - 2];
+
+            if (gamepadForSlot !== undefined) {
+                if (slot) {
+                    slot.classList.remove('disconnected');
+                    slot.querySelector('.slot-info')!.innerHTML = `Joystick ${gamepadForSlot}`;
+                }
+                connectedCount++;
+            } else {
+                if (slot) {
+                    slot.classList.add('disconnected');
+                    slot.querySelector('.slot-info')!.innerHTML = 'Esperando...';
+                }
+            }
+        }
+
+        const startPvpBtn = document.getElementById('btn-start-pvp') as HTMLButtonElement;
+        if (startPvpBtn) {
+            startPvpBtn.disabled = connectedCount < 2;
+        }
     }
 
     private initThree() {
@@ -156,15 +221,46 @@ export class GameScene {
     }
 
     private setupUI() {
+        // Mode Selection
+        document.getElementById('btn-show-single')?.addEventListener('click', () => {
+            document.getElementById('mode-selection')?.classList.add('hidden');
+            document.getElementById('single-player-setup')?.classList.remove('hidden');
+            this.gameMode = GameMode.SINGLE;
+        });
+
+        document.getElementById('btn-show-pvp')?.addEventListener('click', () => {
+            document.getElementById('mode-selection')?.classList.add('hidden');
+            document.getElementById('pvp-setup')?.classList.remove('hidden');
+            this.gameMode = GameMode.PVP;
+            this.updatePlayerSlots();
+        });
+
+        document.getElementById('btn-back-to-modes')?.addEventListener('click', () => {
+            document.getElementById('single-player-setup')?.classList.add('hidden');
+            document.getElementById('mode-selection')?.classList.remove('hidden');
+        });
+
+        document.getElementById('btn-back-to-modes-pvp')?.addEventListener('click', () => {
+            document.getElementById('pvp-setup')?.classList.add('hidden');
+            document.getElementById('mode-selection')?.classList.remove('hidden');
+        });
+
+        // Setup logic
         const nameInput = document.getElementById('player-name') as HTMLInputElement;
-        const startBtn = document.getElementById('btn-start') as HTMLButtonElement;
+        const startSingleBtn = document.getElementById('btn-start-single') as HTMLButtonElement;
+        const startPvpBtn = document.getElementById('btn-start-pvp') as HTMLButtonElement;
 
         nameInput?.addEventListener('input', () => {
             this.playerName = nameInput.value.trim();
-            startBtn.disabled = this.playerName.length === 0;
+            startSingleBtn.disabled = this.playerName.length === 0;
         });
 
-        startBtn?.addEventListener('click', () => {
+        startSingleBtn?.addEventListener('click', () => {
+            document.getElementById('main-menu')?.classList.remove('active');
+            this.startGame();
+        });
+
+        startPvpBtn?.addEventListener('click', () => {
             document.getElementById('main-menu')?.classList.remove('active');
             this.startGame();
         });
@@ -177,6 +273,14 @@ export class GameScene {
             this.resetGame();
             document.getElementById('gameover-overlay')?.classList.remove('active');
             this.startGame();
+        });
+
+        document.getElementById('btn-instructions')?.addEventListener('click', () => {
+            document.getElementById('instructions-overlay')?.classList.add('active');
+        });
+
+        document.getElementById('btn-close-instructions')?.addEventListener('click', () => {
+            document.getElementById('instructions-overlay')?.classList.remove('active');
         });
     }
 

@@ -1,79 +1,117 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Orbit ARPG - Prototype</title>
-  </head>
-  <body>
-    <div id="app"></div>
 
-    <div id="main-menu" class="overlay active">
-      <div class="modal">
-        <h1 class="glow-text">ORBIT ARPG</h1>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orbit ARPG - Prototype</title>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <div id="main-menu" class="overlay active">
+    <div class="modal">
+      <h1 class="glow-text">ORBIT ARPG</h1>
+      <div id="mode-selection">
+        <button id="btn-show-single" class="btn btn-primary">SINGLE PLAYER</button>
+        <button id="btn-show-pvp" class="btn btn-secondary">PVP LOCAL</button>
+      </div>
+
+      <div id="single-player-setup" class="hidden">
         <div class="input-group">
           <label for="player-name">Nombre del Piloto:</label>
           <input type="text" id="player-name" placeholder="Escribe tu nombre..." autocomplete="off">
         </div>
-        <button id="btn-start" class="btn btn-primary" disabled>INICIAR MISIÓN</button>
-        <button id="btn-instructions" class="btn">Instrucciones</button>
-      </div>
-    </div>
-
-    <div class="ui-layer">
-      <div class="top-bar">
-        <div class="phase-container">
-          <span id="phase-name">Fase 1: Tutorial</span>
-        </div>
-        <div class="score-container">
-          <span class="score-label">Kills</span>
-          <span id="score">0</span>
-        </div>
+        <button id="btn-start-single" class="btn btn-primary" disabled>INICIAR MISIÓN</button>
+        <button id="btn-back-to-modes" class="btn-text">← VOLVER</button>
       </div>
 
-      <div class="bottom-bar">
-        <button id="btn-reset" class="btn btn-secondary">Reset Global</button>
-      </div>
-    </div>
-
-    <!-- Instructions Overlay -->
-    <div id="instructions-overlay" class="overlay">
-      <div class="modal">
-        <h2>Cómo Jugar</h2>
-        <div class="instructions-content">
-          <ul>
-            <li>Usa las <b>Flechas</b> o <b>WASD</b> para moverte.</li>
-            <li>Tus armas orbitan automáticamente a tu alrededor.</li>
-            <li>Toca el <b>núcleo central</b> del enemigo con tus armas para matarlo.</li>
-            <li>¡Cuidado! Si su arma toca tu núcleo, pierdes.</li>
-            <li>Al matar, progresas por las fases y subes de nivel.</li>
-          </ul>
-        </div>
-        <button id="btn-close-instructions" class="btn">¡Entendido!</button>
-      </div>
-    </div>
-
-    <!-- Game Over Overlay -->
-    <div id="gameover-overlay" class="overlay">
-      <div class="modal">
-        <h2 id="gameover-title">MISIÓN FALLIDA</h2>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span>Puntaje:</span>
-            <span id="final-score">0</span>
+      <div id="pvp-setup" class="hidden">
+        <h3>Preparación de Combate</h3>
+        <div class="player-grid">
+          <div class="player-slot" id="slot-1" data-player="1">
+            <div class="slot-status">P1</div>
+            <div class="slot-info">Teclado / Joy</div>
+          </div>
+          <div class="player-slot disconnected" id="slot-2" data-player="2">
+            <div class="slot-status">P2</div>
+            <div class="slot-info">Esperando...</div>
+          </div>
+          <div class="player-slot disconnected" id="slot-3" data-player="3">
+            <div class="slot-status">P3</div>
+            <div class="slot-info">Solo Joy</div>
+          </div>
+          <div class="player-slot disconnected" id="slot-4" data-player="4">
+            <div class="slot-status">P4</div>
+            <div class="slot-info">Solo Joy</div>
           </div>
         </div>
-        <div id="leaderboard-section">
-          <h3>Ranking Global</h3>
-          <div id="leaderboard-list">
-            <!-- Ranking populated by JS -->
-          </div>
+        <div class="pvp-actions">
+          <button id="btn-start-pvp" class="btn btn-primary" disabled>INICIAR DUELO</button>
+          <button id="btn-back-to-modes-pvp" class="btn-text">← VOLVER</button>
         </div>
-        <button id="btn-restart" class="btn btn-primary">Reintentar</button>
+      </div>
+
+      <button id="btn-instructions" class="btn" style="margin-top: 2rem;">Instrucciones</button>
+    </div>
+  </div>
+
+  <div class="ui-layer">
+    <div class="top-bar">
+      <div class="phase-container">
+        <span id="phase-name">Fase 1: Tutorial</span>
+      </div>
+      <div class="score-container">
+        <span class="score-label">Kills</span>
+        <span id="score">0</span>
       </div>
     </div>
 
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+    <div class="bottom-bar">
+      <button id="btn-reset" class="btn btn-secondary">Reset Global</button>
+    </div>
+  </div>
+
+  <!-- Instructions Overlay -->
+  <div id="instructions-overlay" class="overlay">
+    <div class="modal">
+      <h2>Cómo Jugar</h2>
+      <div class="instructions-content">
+        <ul>
+          <li>Usa las <b>Flechas</b> o <b>WASD</b> para moverte.</li>
+          <li>Tus armas orbitan automáticamente a tu alrededor.</li>
+          <li>Toca el <b>núcleo central</b> del enemigo con tus armas para matarlo.</li>
+          <li>¡Cuidado! Si su arma toca tu núcleo, pierdes.</li>
+          <li>Al matar, progresas por las fases y subes de nivel.</li>
+        </ul>
+      </div>
+      <button id="btn-close-instructions" class="btn">¡Entendido!</button>
+    </div>
+  </div>
+
+  <!-- Game Over Overlay -->
+  <div id="gameover-overlay" class="overlay">
+    <div class="modal">
+      <h2 id="gameover-title">MISIÓN FALLIDA</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span>Puntaje:</span>
+          <span id="final-score">0</span>
+        </div>
+      </div>
+      <div id="leaderboard-section">
+        <h3>Ranking Global</h3>
+        <div id="leaderboard-list">
+          <!-- Ranking populated by JS -->
+        </div>
+      </div>
+      <button id="btn-restart" class="btn btn-primary">Reintentar</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>

@@ -1,10 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap');
 
 :root {
-  --primary: #06b6d4; /* Cyan neon */
+  --primary: #06b6d4;
+  /* Cyan neon */
   --primary-glow: rgba(6, 182, 212, 0.4);
-  --secondary: #f43f5e; /* Crimson neon */
-  --bg: #020617; /* Very dark navy */
+  --secondary: #f43f5e;
+  /* Crimson neon */
+  --bg: #020617;
+  /* Very dark navy */
   --surface: #0f172a;
   --glass: rgba(15, 23, 42, 0.8);
   --glass-border: rgba(255, 255, 255, 0.1);
@@ -268,4 +271,138 @@ canvas {
 #final-score {
   color: var(--primary);
   font-weight: 700;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#mode-selection {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  letter-spacing: 1px;
+  transition: color 0.2s;
+}
+
+.btn-text:hover {
+  color: var(--primary);
+}
+
+/* Player Selection Grid */
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.player-slot {
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid var(--glass-border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.player-slot::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: var(--text-muted);
+  opacity: 0.3;
+}
+
+.slot-status {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+
+.slot-info {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* Player Colors */
+#slot-1::before {
+  background: #22c55e;
+  opacity: 1;
+}
+
+/* Green */
+#slot-1 .slot-status {
+  color: #22c55e;
+}
+
+#slot-2::before {
+  background: #3b82f6;
+  opacity: 1;
+}
+
+/* Blue */
+#slot-2 .slot-status {
+  color: #3b82f6;
+}
+
+#slot-3::before {
+  background: #ef4444;
+  opacity: 1;
+}
+
+/* Red */
+#slot-3 .slot-status {
+  color: #ef4444;
+}
+
+#slot-4::before {
+  background: #eab308;
+  opacity: 1;
+}
+
+/* Yellow */
+#slot-4 .slot-status {
+  color: #eab308;
+}
+
+.player-slot.disconnected {
+  opacity: 0.5;
+  filter: grayscale(0.8);
+  border-style: dashed;
+}
+
+.player-slot.disconnected::before {
+  background: var(--text-muted) !important;
+}
+
+.player-slot:not(.disconnected) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: currentColor;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+}
+
+.pvp-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
