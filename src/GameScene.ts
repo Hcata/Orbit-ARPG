@@ -269,12 +269,12 @@ export class GameScene {
                 player.addShield();
                 break;
             case ItemType.SPEED:
-                const originalSpeed = player.moveSpeed;
-                player.moveSpeed += 3;
-                setTimeout(() => player.moveSpeed = originalSpeed, 10000);
+                // Green: Double orbit speed for 15 seconds
+                player.boostOrbitSpeed();
                 break;
             case ItemType.EXTRA_ORBIT:
-                player.levelUp();
+                // Purple: Create larger reverse orbit for 15 seconds
+                player.addTemporaryReverseOrbit();
                 this.createLevelUpEffect(player.mesh.position);
                 soundManager.playFanfare();
                 break;
@@ -419,6 +419,8 @@ export class GameScene {
 
         document.getElementById('btn-reset')?.addEventListener('click', () => {
             this.resetGame();
+            soundManager.startMusic();
+            this.startGame();
         });
 
         document.getElementById('btn-restart')?.addEventListener('click', () => {
@@ -457,6 +459,17 @@ export class GameScene {
 
         document.getElementById('btn-fullscreen')?.addEventListener('click', toggleFullscreen);
         document.getElementById('btn-fullscreen-menu')?.addEventListener('click', toggleFullscreen);
+
+        // Back to menu buttons
+        const backToMenu = () => {
+            this.resetGame();
+            soundManager.stopMusic();
+            document.getElementById('gameover-overlay')?.classList.remove('active');
+            document.getElementById('menu-overlay')?.classList.add('active');
+        };
+
+        document.getElementById('btn-back-menu')?.addEventListener('click', backToMenu);
+        document.getElementById('btn-gameover-menu')?.addEventListener('click', backToMenu);
     }
 
     private startGame() {
@@ -584,8 +597,8 @@ export class GameScene {
         const maxItems = this.phaseManager.getItemsCount();
         if (this.items.length >= maxItems) return;
 
-        // Increased spawn rate for better testing/gameplay
-        if (Math.random() > 0.02) return;
+        // Increased spawn rate for better gameplay
+        if (Math.random() > 0.05) return; // Increased from 0.02 to 0.05
 
         const x = (Math.random() - 0.5) * this.MAP_RADIUS;
         const y = (Math.random() - 0.5) * this.MAP_RADIUS;

@@ -43,7 +43,7 @@ export class Obstacle {
             shape: shape,
             position: new CANNON.Vec3(position.x, position.y, position.z),
             collisionFilterGroup: 16,
-            collisionFilterMask: 1 | 8 | 2 | 4,
+            collisionFilterMask: type === ObstacleType.WALL ? (1 | 8 | 2 | 4) : (1 | 8 | 2 | 4 | 16), // Walls don't collide with walls
         });
 
         (this.body as any).isObstacle = true;

@@ -34,7 +34,7 @@ export class Item {
                 break;
             case ItemType.EXTRA_ORBIT:
                 geometry = new THREE.OctahedronGeometry(0.3, 0);
-                color = 0xeab308; // Yellow
+                color = 0xa855f7; // Purple (changed from yellow)
                 break;
             default:
                 geometry = new THREE.SphereGeometry(0.3, 16, 16);

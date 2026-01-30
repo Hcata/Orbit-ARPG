@@ -10,8 +10,8 @@ export class OrbitSystem {
         private scene: THREE.Scene,
         private world: CANNON.World,
         private count: number,
-        private radius: number,
-        private speed: number,
+        public radius: number,
+        public speed: number,
         private color: number,
         private ownerType: 'player' | 'enemy',
         private gameScene: any, // Reference for safe removal
@@ -24,11 +24,11 @@ export class OrbitSystem {
     private createOrbitRing(pos: THREE.Vector3) {
         if (this.orbitRing) this.scene.remove(this.orbitRing);
 
-        const geometry = new THREE.RingGeometry(this.radius - 0.02, this.radius + 0.02, 64);
+        const geometry = new THREE.RingGeometry(this.radius - 0.05, this.radius + 0.05, 64);
         const material = new THREE.MeshBasicMaterial({
             color: this.color,
             transparent: true,
-            opacity: 0.1,
+            opacity: 0.4, // Increased from 0.1
             side: THREE.DoubleSide
         });
         this.orbitRing = new THREE.Mesh(geometry, material);

@@ -130,6 +130,49 @@ export class Player extends BaseCharacter {
         }
     }
 
+    public boostOrbitSpeed() {
+        // Double orbit speed for 15 seconds
+        const currentSpeed = this.orbitSystem.speed;
+        this.orbitSystem.speed = currentSpeed * 2;
+
+        setTimeout(() => {
+            this.orbitSystem.speed = currentSpeed;
+        }, 15000);
+    }
+
+    public addTemporaryReverseOrbit() {
+        // Create a larger orbit in reverse direction with same weapon count for 15 seconds
+        const currentCount = this.orbitSystem.weapons.length;
+        const currentRadius = this.orbitSystem.radius;
+
+        // Create temporary reverse orbit system
+        const tempOrbit = new OrbitSystem(
+            this.scene,
+            this.world,
+            currentCount,
+            currentRadius + 0.8, // Larger radius
+            -2.0, // Negative speed for reverse direction
+            this.color,
+            this.type,
+            this.gameScene,
+            this.mesh.position
+        );
+
+        // Store reference to update position
+        const updateTempOrbit = () => {
+            if (tempOrbit && !this.isDead) {
+                tempOrbit.update(0.016, this.mesh.position);
+            }
+        };
+
+        const interval = setInterval(updateTempOrbit, 16);
+
+        setTimeout(() => {
+            clearInterval(interval);
+            tempOrbit.destroy();
+        }, 15000);
+    }
+
     public reset() {
         this.level = 1;
         this.isDead = false;
