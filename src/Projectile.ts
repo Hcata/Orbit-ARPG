@@ -8,6 +8,11 @@ export class Projectile {
     public isDead: boolean = false;
     private lifeTime: number = 5;
 
+    private static sharedGeometry = new THREE.CapsuleGeometry(0.1, 0.4, 4, 8);
+    private static sharedMaterial = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+    private static explosionGeometry = new THREE.CircleGeometry(0.1, 8);
+    private static decalGeometry = new THREE.CircleGeometry(0.4, 16);
+
     constructor(
         private scene: THREE.Scene,
         private world: CANNON.World,
@@ -17,10 +22,7 @@ export class Projectile {
         private ownerType: 'player' | 'enemy',
         private gameScene: any
     ) {
-        // Red cyan missile look
-        const geometry = new THREE.CapsuleGeometry(0.1, 0.4, 4, 8);
-        const material = new THREE.MeshBasicMaterial({ color: 0xf43f5e }); // Crimson
-        this.mesh = new THREE.Mesh(geometry, material);
+        this.mesh = new THREE.Mesh(Projectile.sharedGeometry, Projectile.sharedMaterial);
 
         // Orient towards direction
         const quaternion = new THREE.Quaternion();
@@ -72,53 +74,21 @@ export class Projectile {
     }
 
     private createExplosionEffect() {
-        // Particle system (simplified for this task)
-        const particleCount = 10;
-        for (let i = 0; i < particleCount; i++) {
-            const geo = new THREE.CircleGeometry(0.1, 8);
-            const mat = new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true });
-            const p = new THREE.Mesh(geo, mat);
-            p.position.copy(this.mesh.position);
-            this.scene.add(p);
-
-            const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, 0).normalize();
-            const speed = Math.random() * 2;
-
-            let lifetime = 0.5;
-            const animateP = () => {
-                if (lifetime <= 0) {
-                    this.scene.remove(p);
-                    return;
-                }
-                p.position.x += dir.x * speed * 0.016;
-                p.position.y += dir.y * speed * 0.016;
-                lifetime -= 0.016;
-                mat.opacity = lifetime / 0.5;
-                requestAnimationFrame(animateP);
-            };
-            animateP();
+        // Delegate explosion particles to GameScene's centralized system
+        if (this.gameScene.createExplosionParticles) {
+            this.gameScene.createExplosionParticles(this.mesh.position, 0xffa500);
         }
 
-        // Black decal
-        const decalGeo = new THREE.CircleGeometry(0.4, 16);
+        // Optimized Decal (reusing geometry)
         const decalMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 });
-        const decal = new THREE.Mesh(decalGeo, decalMat);
+        const decal = new THREE.Mesh(Projectile.decalGeometry, decalMat);
         decal.position.set(this.mesh.position.x, this.mesh.position.y, -0.05);
         this.scene.add(decal);
 
-        // Decal fades out slowly
+        // Simple cleanup for decal
         setTimeout(() => {
-            let op = 0.5;
-            const fade = () => {
-                op -= 0.01;
-                if (op <= 0) {
-                    this.scene.remove(decal);
-                } else {
-                    decalMat.opacity = op;
-                    requestAnimationFrame(fade);
-                }
-            };
-            fade();
+            this.scene.remove(decal);
+            decalMat.dispose();
         }, 5000);
     }
 

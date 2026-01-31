@@ -73,16 +73,16 @@ export class Enemy extends BaseCharacter {
         }
     }
 
-    public update(deltaTime: number) {
+    public update(deltaTime: number, targetPos?: THREE.Vector3) {
         super.update(deltaTime);
         if (this.isDead) return;
 
-        this.handleCombat(deltaTime);
+        this.handleCombat(deltaTime, targetPos);
     }
 
-    private handleCombat(deltaTime: number) {
-        const playerPos = this.gameScene.getPlayerPosition();
-        const dist = playerPos.distanceTo(this.mesh.position);
+    private handleCombat(deltaTime: number, targetPos?: THREE.Vector3) {
+        const combatTarget = targetPos || this.gameScene.getPlayerPosition();
+        const dist = combatTarget.distanceTo(this.mesh.position);
 
         if (this.enemyType === EnemyType.TANK) {
             this.fireCooldown -= deltaTime;
@@ -95,7 +95,7 @@ export class Enemy extends BaseCharacter {
             if (this.isFiringCascade) {
                 this.lastCascadeFire -= deltaTime;
                 if (this.lastCascadeFire <= 0) {
-                    this.fireMissile(playerPos);
+                    this.fireMissile(combatTarget);
                     this.cascadeCount++;
                     this.lastCascadeFire = 0.3; // Delay between missiles
 
@@ -108,7 +108,7 @@ export class Enemy extends BaseCharacter {
         } else if (this.enemyType === EnemyType.LAUNCHER) {
             this.fireCooldown -= deltaTime;
             if (this.fireCooldown <= 0 && dist < 12) {
-                this.fireMissile(playerPos);
+                this.fireMissile(combatTarget);
                 this.fireCooldown = 2.0;
             }
         }

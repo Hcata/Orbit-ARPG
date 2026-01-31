@@ -60,13 +60,17 @@ export class PhaseManager {
         this.enemiesKilledInSubLevel = 0;
     }
 
-    public onEnemyKilled(): boolean {
+    public onEnemyKilled(): { sublevelChanged: boolean, phaseChanged: boolean } {
         this.enemiesKilledInSubLevel++;
         if (this.enemiesKilledInSubLevel >= this.totalEnemiesInCurrentSubLevel) {
+            const oldPhase = this.currentPhase;
             this.nextSubLevel();
-            return true;
+            return {
+                sublevelChanged: true,
+                phaseChanged: this.currentPhase !== oldPhase
+            };
         }
-        return false;
+        return { sublevelChanged: false, phaseChanged: false };
     }
 
     private nextSubLevel() {

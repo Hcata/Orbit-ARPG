@@ -27,6 +27,10 @@ export class GameScene {
     private projectiles: Projectile[] = [];
     private obstacles: Obstacle[] = [];
     private items: Item[] = [];
+    private confettiParticles: { mesh: THREE.Mesh; speed: number; rotSpeed: number; drift: number; life: number }[] = [];
+    private explosionParticles: { mesh: THREE.Mesh; velocity: THREE.Vector3; life: number }[] = [];
+    private static explosionGeo = new THREE.CircleGeometry(0.1, 8);
+    private activeGamepads: (Gamepad | null)[] = [];
 
     private phaseManager: PhaseManager = new PhaseManager();
     private gameMode: GameMode = GameMode.SINGLE;
@@ -39,6 +43,11 @@ export class GameScene {
     private playerName: string = '';
 
     private bodiesToRemove: CANNON.Body[] = [];
+    private lastGamepadButtons: boolean[] = [];
+    private frameTimes: number[] = [];
+    private lastFpsUpdate: number = 0;
+    private lastFrameTimestamp: number = 0;
+    private fpsDropLogged: boolean = false;
 
     constructor() {
         this.initThree();
@@ -275,7 +284,7 @@ export class GameScene {
             case ItemType.EXTRA_ORBIT:
                 // Purple: Create larger reverse orbit for 15 seconds
                 player.addTemporaryReverseOrbit();
-                this.createLevelUpEffect(player.mesh.position);
+                // Removed createLevelUpEffect from here
                 soundManager.playFanfare();
                 break;
         }
@@ -314,47 +323,33 @@ export class GameScene {
     }
 
     private createLevelUpEffect(pos: THREE.Vector3) {
-        // Confetti rain - FULL SCREEN
         const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffd700];
         const camX = this.camera.position.x;
         const camY = this.camera.position.y;
 
-        // Spawn 150 larger confetti pieces
-        for (let i = 0; i < 150; i++) {
-            const size = 0.2 + Math.random() * 0.15; // Larger pieces
-            const geo = new THREE.PlaneGeometry(size, size);
+        const sharedGeo = new THREE.PlaneGeometry(0.2, 0.2);
+
+        for (let i = 0; i < 80; i++) { // Reduced count for better performance
             const mat = new THREE.MeshBasicMaterial({
                 color: colors[Math.floor(Math.random() * colors.length)],
                 side: THREE.DoubleSide,
                 transparent: true
             });
-            const p = new THREE.Mesh(geo, mat);
+            const p = new THREE.Mesh(sharedGeo, mat);
 
-            // Random position in a wide area around the camera
-            const spawnX = camX + (Math.random() - 0.5) * 30; // Wide horizontal spread
-            const spawnY = camY + 15 + Math.random() * 5;     // Start high above camera
+            const spawnX = camX + (Math.random() - 0.5) * 30;
+            const spawnY = camY + 15 + Math.random() * 5;
 
-            p.position.set(spawnX, spawnY, 2.0); // View priority Z
+            p.position.set(spawnX, spawnY, 2.0);
             this.scene.add(p);
 
-            const speed = 4 + Math.random() * 4;
-            const rotSpeed = 5 + Math.random() * 5;
-            const drift = (Math.random() - 0.5) * 4;
-            let life = 4.0;
-            const anim = () => {
-                if (life <= 0) {
-                    this.scene.remove(p);
-                } else {
-                    p.position.y -= speed * 0.016;
-                    p.position.x += drift * 0.016;
-                    p.rotation.x += rotSpeed * 0.016;
-                    p.rotation.z += rotSpeed * 0.016;
-                    life -= 0.016;
-                    if (life < 1.0) mat.opacity = life; // Fade out at the end
-                    requestAnimationFrame(anim);
-                }
-            };
-            anim();
+            this.confettiParticles.push({
+                mesh: p,
+                speed: 4 + Math.random() * 4,
+                rotSpeed: 5 + Math.random() * 5,
+                drift: (Math.random() - 0.5) * 4,
+                life: 3.0 // Slightly reduced life
+            });
         }
     }
 
@@ -613,8 +608,8 @@ export class GameScene {
         this.projectiles.push(p);
     }
 
-    public getPlayerPosition(): THREE.Vector3 {
-        return this.player.mesh.position;
+    public getGamepads() {
+        return this.activeGamepads;
     }
 
     private killEnemy(enemy: Enemy) {
@@ -630,11 +625,16 @@ export class GameScene {
         enemy.die();
         this.enemies = this.enemies.filter(e => e !== enemy);
 
-        if (this.phaseManager.onEnemyKilled()) {
+        const result = this.phaseManager.onEnemyKilled();
+        if (result.sublevelChanged) {
             this.updatePhaseUI();
-            // Optional: Give reward on phase up
-            if (this.phaseManager.currentPhase > GamePhase.PHASE_1_TUTORIAL) {
-                this.player.levelUp();
+
+            // Only level up on sublevel changes
+            this.player.levelUp();
+            this.pvpPlayers.forEach(p => p.levelUp()); // Level up all active players
+
+            // ONLY trigger confetti ON PHASE CHANGES
+            if (result.phaseChanged) {
                 this.createLevelUpEffect(this.player.mesh.position);
                 soundManager.playFanfare();
             }
@@ -684,6 +684,9 @@ export class GameScene {
         this.items.forEach(i => i.die());
         this.items = [];
 
+        this.confettiParticles.forEach(c => this.scene.remove(c.mesh));
+        this.confettiParticles = [];
+
         this.player.reset();
         this.pvpPlayers.forEach(p => p.die());
         this.pvpPlayers = [];
@@ -695,6 +698,9 @@ export class GameScene {
     private animate(time: number) {
         const deltaTime = Math.min((time - this.lastTime) / 1000, 0.1);
         this.lastTime = time;
+
+        // Poll gamepads once per frame
+        this.activeGamepads = navigator.getGamepads();
 
         if (this.bodiesToRemove.length > 0) {
             this.bodiesToRemove.forEach(body => {
@@ -722,20 +728,20 @@ export class GameScene {
             });
 
             this.enemies.forEach(enemy => {
-                // Enemies follow nearest player
                 let nearestPlayer = this.player;
-                let minDist = enemy.mesh.position.distanceTo(this.player.mesh.position);
+                let minDistSq = enemy.mesh.position.distanceToSquared(this.player.mesh.position);
 
                 this.pvpPlayers.forEach(p => {
-                    const d = enemy.mesh.position.distanceTo(p.mesh.position);
-                    if (d < minDist) {
-                        minDist = d;
+                    if (p.isDead) return;
+                    const dSq = enemy.mesh.position.distanceToSquared(p.mesh.position);
+                    if (dSq < minDistSq) {
+                        minDistSq = dSq;
                         nearestPlayer = p;
                     }
                 });
 
                 enemy.moveTowards(nearestPlayer.mesh.position);
-                enemy.update(deltaTime);
+                enemy.update(deltaTime, nearestPlayer.mesh.position); // Pass nearest player position to update for firing missiles accurately
             });
 
             this.projectiles = this.projectiles.filter(p => !p.isDead);
@@ -751,6 +757,8 @@ export class GameScene {
             if (Math.random() < 0.05) this.spawnEnemy();
             if (Math.random() < 0.01) this.spawnObstacle();
             if (Math.random() < 0.01) this.spawnItem();
+
+            this.updateVFX(deltaTime);
 
             // Camera follow (center between players or focus on P1)
             if (this.gameMode === GameMode.SINGLE) {
@@ -769,7 +777,161 @@ export class GameScene {
             }
         }
 
+        this.handleGamepadMenuInput();
+        this.updateFPS(time);
+
         this.renderer.render(this.scene, this.camera);
         requestAnimationFrame((t) => this.animate(t));
+    }
+
+    private updateVFX(deltaTime: number) {
+        // Update confetti
+        for (let i = this.confettiParticles.length - 1; i >= 0; i--) {
+            const c = this.confettiParticles[i];
+            c.life -= deltaTime;
+            if (c.life <= 0) {
+                this.scene.remove(c.mesh);
+                (c.mesh.material as THREE.Material).dispose();
+                this.confettiParticles.splice(i, 1);
+            } else {
+                c.mesh.position.y -= c.speed * deltaTime;
+                c.mesh.position.x += c.drift * deltaTime;
+                c.mesh.rotation.x += c.rotSpeed * deltaTime;
+                c.mesh.rotation.z += c.rotSpeed * deltaTime;
+                if (c.life < 1.0) {
+                    (c.mesh.material as THREE.MeshBasicMaterial).opacity = c.life;
+                }
+            }
+        }
+
+        // Update explosions
+        for (let i = this.explosionParticles.length - 1; i >= 0; i--) {
+            const p = this.explosionParticles[i];
+            p.life -= deltaTime;
+            if (p.life <= 0) {
+                this.scene.remove(p.mesh);
+                (p.mesh.material as THREE.Material).dispose();
+                this.explosionParticles.splice(i, 1);
+            } else {
+                p.mesh.position.x += p.velocity.x * deltaTime;
+                p.mesh.position.y += p.velocity.y * deltaTime;
+                (p.mesh.material as THREE.MeshBasicMaterial).opacity = p.life / 0.5;
+            }
+        }
+    }
+
+    public createExplosionParticles(pos: THREE.Vector3, color: number) {
+        const particleCount = 8;
+        for (let i = 0; i < particleCount; i++) {
+            const mat = new THREE.MeshBasicMaterial({ color, transparent: true });
+            const p = new THREE.Mesh(GameScene.explosionGeo, mat);
+            p.position.copy(pos);
+            this.scene.add(p);
+            const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, 0).normalize();
+            const speed = 1 + Math.random() * 2;
+            this.explosionParticles.push({
+                mesh: p,
+                velocity: dir.multiplyScalar(speed),
+                life: 0.5
+            });
+        }
+    }
+
+    private updateFPS(time: number) {
+        if (this.lastFrameTimestamp > 0) {
+            const frameDelta = time - this.lastFrameTimestamp;
+            this.frameTimes.push(frameDelta);
+            if (this.frameTimes.length > 30) this.frameTimes.shift(); // Smaller window for more responsiveness
+        }
+        this.lastFrameTimestamp = time;
+
+        // Update UI every 250ms (more frequent)
+        if (time - this.lastFpsUpdate > 250) {
+            if (this.frameTimes.length > 0) {
+                const avgDelta = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+                const fps = Math.round(1000 / avgDelta);
+                const fpsEl = document.getElementById('fps-val');
+                if (fpsEl) fpsEl.innerText = fps.toString();
+
+                // Change color if FPS drops
+                if (fpsEl) {
+                    if (fps < 45) fpsEl.style.color = '#ef4444'; // Red
+                    else if (fps < 55) fpsEl.style.color = '#eab308'; // Yellow
+                    else fpsEl.style.color = '#22c55e'; // Green
+                }
+
+                // Log drops
+                if (fps < 45 && !this.isGameOver) {
+                    console.warn(`[PERF] FPS Drop detected: ${fps} FPS.`, {
+                        enemies: this.enemies.length,
+                        projectiles: this.projectiles.length,
+                        confetti: this.confettiParticles.length,
+                        bodies: this.world.bodies.length
+                    });
+                }
+            }
+            this.lastFpsUpdate = time;
+        }
+    }
+    private handleGamepadMenuInput() {
+        if (!this.activeGamepads) return;
+        const gp = Array.from(this.activeGamepads).find(g => g !== null);
+        if (!gp) return;
+
+        const buttons = gp.buttons.map(b => b.pressed);
+
+        // Help function for debounced press
+        const isJustPressed = (index: number) => buttons[index] && !this.lastGamepadButtons[index];
+
+        if (this.isGameOver) {
+            // Main Menu or Game Over screen
+            const mainMenu = document.getElementById('main-menu');
+            const gameOver = document.getElementById('gameover-overlay');
+            const instructions = document.getElementById('instructions-overlay');
+
+            if (instructions?.classList.contains('active')) {
+                if (isJustPressed(0) || isJustPressed(9)) {
+                    document.getElementById('btn-close-instructions')?.click();
+                }
+            } else if (gameOver?.classList.contains('active')) {
+                if (isJustPressed(0) || isJustPressed(9)) {
+                    document.getElementById('btn-restart')?.click();
+                } else if (isJustPressed(1)) {
+                    document.getElementById('btn-gameover-menu')?.click();
+                }
+            } else if (mainMenu?.classList.contains('active')) {
+                const modeSelection = document.getElementById('mode-selection');
+                const singleSetup = document.getElementById('single-player-setup');
+                const pvpSetup = document.getElementById('pvp-setup');
+
+                if (modeSelection && !modeSelection.classList.contains('hidden')) {
+                    if (isJustPressed(0)) document.getElementById('btn-show-single')?.click();
+                    if (isJustPressed(1)) document.getElementById('btn-show-pvp')?.click();
+                    if (isJustPressed(3)) document.getElementById('btn-instructions')?.click();
+                } else if (singleSetup && !singleSetup.classList.contains('hidden')) {
+                    if (isJustPressed(0) || isJustPressed(9)) {
+                        if (this.playerName.length === 0) {
+                            this.playerName = 'JoyPilot';
+                            const nameInput = document.getElementById('player-name') as HTMLInputElement;
+                            if (nameInput) nameInput.value = this.playerName;
+                        }
+                        document.getElementById('btn-start-single')?.click();
+                    }
+                    if (isJustPressed(1)) document.getElementById('btn-back-to-modes')?.click();
+                } else if (pvpSetup && !pvpSetup.classList.contains('hidden')) {
+                    if (isJustPressed(0) || isJustPressed(9)) {
+                        document.getElementById('btn-start-pvp')?.click();
+                    }
+                    if (isJustPressed(1)) document.getElementById('btn-back-to-modes-pvp')?.click();
+                }
+            }
+        } else {
+            // In game
+            if (isJustPressed(9)) {
+                // Potential Pause logic if implemented
+            }
+        }
+
+        this.lastGamepadButtons = buttons;
     }
 }

@@ -64,7 +64,7 @@ export abstract class BaseCharacter {
         );
     }
 
-    public update(deltaTime: number) {
+    public update(deltaTime: number, targetPos?: THREE.Vector3) {
         if (this.isDead) return;
 
         this.mesh.position.set(this.body.position.x, this.body.position.y, 0);

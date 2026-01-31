@@ -30,6 +30,23 @@ export class Player extends BaseCharacter {
         // We add the listeners once or just check keys.
         window.addEventListener('keydown', (e) => this.keys[e.code] = true);
         window.addEventListener('keyup', (e) => this.keys[e.code] = false);
+
+        this.initTrail();
+    }
+
+    private initTrail() {
+        const geo = new THREE.CircleGeometry(0.5, 16);
+        for (let i = 0; i < this.MAX_TRAIL; i++) {
+            const mat = new THREE.MeshBasicMaterial({
+                color: this.color,
+                transparent: true,
+                opacity: 0
+            });
+            const m = new THREE.Mesh(geo, mat);
+            m.visible = false;
+            this.scene.add(m);
+            this.trailMeshes.push(m);
+        }
     }
 
     public setGamepadIndex(index: number | null) {
@@ -68,16 +85,46 @@ export class Player extends BaseCharacter {
         }
 
         // Gamepad movement
-        if (this.gamepadIndex !== null) {
+        let effectiveGamepadIndex = this.gamepadIndex;
+        if (effectiveGamepadIndex === null && this.playerIndex === 0) {
+            // In single player, try to find the first connected gamepad automatically
             const gamepads = navigator.getGamepads();
-            const gp = gamepads[this.gamepadIndex];
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    effectiveGamepadIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (effectiveGamepadIndex !== null) {
+            const gamepads = navigator.getGamepads();
+            const gp = gamepads[effectiveGamepadIndex];
             if (gp) {
+                // Left Stick
                 const axisX = gp.axes[0];
                 const axisY = gp.axes[1];
 
-                // Deadzone
-                if (Math.abs(axisX) > 0.1) vel.x += axisX;
-                if (Math.abs(axisY) > 0.1) vel.y -= axisY; // Gamepad Y is inverted
+                // D-Pad (sometimes mapped as axes or buttons, checking axes first)
+                // Standard gamepad mapping: axis 6, 7 are often used for dpad in some browsers, 
+                // but let's check buttons as well.
+                let dX = 0;
+                let dY = 0;
+
+                // Buttons check (D-pad)
+                if (gp.buttons[12]?.pressed) dY += 1; // Up
+                if (gp.buttons[13]?.pressed) dY -= 1; // Down
+                if (gp.buttons[14]?.pressed) dX -= 1; // Left
+                if (gp.buttons[15]?.pressed) dX += 1; // Right
+
+                // Deadzone for analog stick
+                const deadzone = 0.15;
+                if (Math.abs(axisX) > deadzone) vel.x += axisX;
+                if (Math.abs(axisY) > deadzone) vel.y -= axisY; // Gamepad Y is inverted
+
+                // Apply D-pad
+                vel.x += dX;
+                vel.y += dY;
             }
         }
 
@@ -210,25 +257,21 @@ export class Player extends BaseCharacter {
         );
 
         // Clear trail
-        this.trailMeshes.forEach(m => this.scene.remove(m));
-        this.trailMeshes = [];
         this.trailPositions = [];
+        this.trailMeshes.forEach(m => {
+            m.visible = false;
+        });
     }
 
     private updateTrail(deltaTime: number) {
         if (this.isDead) return;
 
-        // Current position
         const currentPos = this.mesh.position.clone();
         const velocity = new CANNON.Vec3(this.body.velocity.x, this.body.velocity.y, 0).length();
 
-        // Always remove old meshes first
-        this.trailMeshes.forEach(m => this.scene.remove(m));
-        this.trailMeshes = [];
-
-        // Only add to trail if moving
+        // Update trail positions
         if (velocity > 0.5) {
-            this.trailFadeTimer = 0; // Reset fade timer when moving
+            this.trailFadeTimer = 0;
             if (this.trailPositions.length === 0 || currentPos.distanceTo(this.trailPositions[0]) > 0.2) {
                 this.trailPositions.unshift(currentPos);
                 if (this.trailPositions.length > this.MAX_TRAIL) {
@@ -236,29 +279,29 @@ export class Player extends BaseCharacter {
                 }
             }
         } else {
-            // Gradually clear trail when stopped - fade out in 0.3 seconds
             this.trailFadeTimer += deltaTime;
-            if (this.trailFadeTimer >= 0.3 / this.MAX_TRAIL && this.trailPositions.length > 0) {
+            if (this.trailFadeTimer >= 0.1 && this.trailPositions.length > 0) {
                 this.trailPositions.pop();
                 this.trailFadeTimer = 0;
             }
         }
 
-        // Render current trail
-        for (let i = 0; i < this.trailPositions.length; i++) {
-            const opacity = 0.5 * (1 - i / this.MAX_TRAIL);
-            const scale = 1 - (i / this.MAX_TRAIL) * 0.5;
-            const geo = new THREE.CircleGeometry(0.5 * scale, 16);
-            const mat = new THREE.MeshBasicMaterial({
-                color: this.color,
-                transparent: true,
-                opacity: opacity
-            });
-            const m = new THREE.Mesh(geo, mat);
-            m.position.copy(this.trailPositions[i]);
-            m.position.z = -0.1;
-            this.scene.add(m);
-            this.trailMeshes.push(m);
+        // Update existing trail meshes
+        for (let i = 0; i < this.trailMeshes.length; i++) {
+            const m = this.trailMeshes[i];
+            const pos = this.trailPositions[i];
+
+            if (pos) {
+                m.position.copy(pos);
+                m.position.z = -0.1;
+                const opacity = 0.5 * (1 - i / this.MAX_TRAIL);
+                const scale = 1 - (i / this.MAX_TRAIL) * 0.5;
+                m.scale.set(scale, scale, 1);
+                (m.material as THREE.MeshBasicMaterial).opacity = opacity;
+                m.visible = true;
+            } else {
+                m.visible = false;
+            }
         }
     }
 
